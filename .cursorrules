@@ -1,0 +1,155 @@
+Project description: 
+All three games Include a timer and a banner that declares the end of the game that includes options "Next Game" and "Choose another game"  and "Quit" buttons. Clicking "Next Game" will start a new game with the same difficulty, and clicking "Quit" will take the user to the start page
+All three games have three levels of difficulty. The minesweeper: easy - 20 mines, medium 50 mines and hard 80 mines. Sudoku and chess the same when it comes to complexity
+Minesweeper rules: Data Structures & Classes ────────────────────────────────────────────────
+1.1 Cell (or Tile) Object • Attributes: – isMine (boolean): true if this cell has a mine.
+– adjacentMineCount (integer): number of mines in the 8 surrounding cells.
+– isRevealed (boolean): true if the user has revealed this cell.
+– isFlagged (boolean): true if the user has flagged this cell.
+• Methods (optional, for clarity): – reveal(): Sets isRevealed = true (used when the user uncovers the cell).
+– toggleFlag(): Switches isFlagged on/off.
+
+1.2 Board Object • Attributes: – grid (2D array of Cell objects).
+– width (integer): columns.
+– height (integer): rows.
+– totalMines (integer): total number of mines.
+– revealedCount (integer): how many cells are currently revealed.
+– flagsUsed (integer): how many flags have been placed.
+
+• Methods (suggested):
+
+initializeBoard(difficulty):
+– Sets width, height, totalMines based on difficulty (e.g., Easy: 9×9, 10 mines; Medium: 16×16, 40 mines; Hard: 16×30, 99 mines).
+– Creates and populates the grid with default cells.
+
+placeMines(firstClickRow, firstClickCol):
+– Randomly place totalMines mines in the grid.
+– Optionally ensure the first clicked cell is never a mine by relocating if necessary.
+
+calculateAdjacency():
+– For each cell that is not a mine, count the mines in its 8 neighbors.
+– Store the count in adjacentMineCount.
+
+revealCell(row, col):
+– If the cell is flagged, ignore or remove the flag first (depending on design choice).
+– If it contains a mine, the player loses (trigger game-over logic).
+– If adjacentMineCount > 0, just reveal that cell.
+– If adjacentMineCount == 0, reveal that cell + recursively reveal all neighbors (flood-fill).
+
+toggleFlag(row, col):
+– Toggles the isFlagged status on the cell.
+– Keep track of flagsUsed.
+
+checkWinCondition():
+– Player wins if all non-mine cells are revealed (revealedCount == width * height – totalMines).
+
+resetBoard():
+– Clears or re-initializes everything for a new game.
+
+──────────────────────────────────────────────── 2. Game Flow ────────────────────────────────────────────────
+
+Start a new game with a chosen difficulty (Easy, Medium, Hard).
+Call board.initializeBoard(difficulty) to set up the basic grid.
+Wait for the user’s first action:
+– If the user’s first action is a “reveal,” call placeMines(row, col) before revealing that cell.
+This ensures you can control whether the first cell is a guaranteed safe spot.
+Each time the user reveals a cell, call board.revealCell(row, col).
+If the user flags a cell, call board.toggleFlag(row, col).
+After each reveal or flag, check the outcome:
+– If the revealed cell was a mine -> Game Over.
+– Check if the player has won -> reveal all mines or show a “You Win” screen.
+Continue user interaction until they either lose or win.
+──────────────────────────────────────────────── 3. Difficulty Levels ────────────────────────────────────────────────
+
+Assign whichever dimensions and mine counts suit your design:
+
+• Easy (Simple): 9×9 grid, 10 mines.
+• Medium: 16×16 grid, 40 mines.
+• Hard (Expert): 16×30 grid, 99 mines.
+
+You can tweak these for a different experience.
+
+──────────────────────────────────────────────── 4. User Interactions ────────────────────────────────────────────────
+
+4.1 Touchscreen (Mobile/Tablet)
+
+Tap (short press) on a cell → revealCell(row, col).
+– If it’s a mine, game over.
+– If adjacentMineCount == 0, flood-fill/ cascade.
+– If > 0, display the count.
+Long press for ~0.5–1 second → toggleFlag(row, col).
+Optional “Flag Mode” Button:
+– When active, any tap toggles the flag instead of revealing.
+Optional Gestures:
+– Pinch to Zoom if your board is large.
+– Pan/Drag to move around if the screen is zoomed in.
+4.2 Mouse (PC/Desktop)
+
+Left-click on a cell → revealCell(row, col).
+Right-click on a cell → toggleFlag(row, col).
+Optional middle-click (some Minesweeper versions):
+– If a revealed cell shows a digit X, and you have placed exactly X flags around it, a middle-click automatically reveals all other neighbors.
+──────────────────────────────────────────────── 5. Implementation Steps for the LLM ────────────────────────────────────────────────
+
+A. Create Classes
+
+Class Cell:
+– Fields: isMine, adjacentMineCount, isRevealed, isFlagged.
+– Optional methods: reveal(), toggleFlag().
+
+Class Board:
+– Fields: grid, width, height, totalMines, revealedCount, flagsUsed.
+– Methods: initializeBoard, placeMines, calculateAdjacency, revealCell, toggleFlag, checkWinCondition, resetBoard.
+
+B. Pseudocode for Key Methods
+
+initializeBoard(difficulty): – switch(difficulty): case EASY: width=9; height=9; totalMines=10; break; case MEDIUM: width=16; height=16; totalMines=40; break; case HARD: width=16; height=30; totalMines=99; break; – grid = two-dimensional array [height][width] of new Cell objects.
+
+placeMines(firstClickRow, firstClickCol): – Create a list of all possible (row, col) positions except (firstClickRow, firstClickCol).
+– Shuffle or randomly select totalMines positions from that list.
+– For each selected position: grid[row][col].isMine = true.
+– Then call calculateAdjacency().
+
+calculateAdjacency(): – For each cell in grid: If not isMine: count = 0 For each neighbor (in 8 directions): If neighbor isMine: count++ grid[row][col].adjacentMineCount = count
+
+revealCell(row, col): – If grid[row][col].isFlagged, you may choose to ignore or forcibly unflag it; up to design.
+– If grid[row][col].isMine: // trigger game over return – If grid[row][col].isRevealed: return (already uncovered)
+– grid[row][col].isRevealed = true – revealedCount++ – If grid[row][col].adjacentMineCount == 0: // flood-fill For each neighbor (in 8 directions): revealCell(neighborRow, neighborCol)
+
+toggleFlag(row, col): – If grid[row][col].isRevealed, do nothing (cannot flag a revealed cell).
+– grid[row][col].isFlagged = !grid[row][col].isFlagged – Update flagsUsed accordingly (increment if setting a flag, decrement if removing one).
+
+checkWinCondition(): – if revealedCount == (width * height - totalMines): // All non-mine cells are revealed => Win
+
+C. Main Game Handling
+
+On game start: board.initializeBoard(difficulty).
+Wait for first user action.
+– If it’s a reveal for a cell (r, c):
+– board.placeMines(r, c) (if this is truly the first reveal).
+– board.revealCell(r, c).
+On any subsequent user action:
+– If reveal: board.revealCell(r, c).
+– If flag: board.toggleFlag(r, c).
+– After each action, call board.checkWinCondition().
+D. UI/Frontend Updates • Refresh the board after each action.
+– Display revealed cells (and numbers).
+– Display flagged cells with a flag icon.
+– If the user uncovers a mine, show the mine and end the game.
+• Show counters for flags used or mines remaining.
+• Optionally, show a timer if you want a timed challenge.
+
+──────────────────────────────────────────────── 6. Tips & Optional Extensions ────────────────────────────────────────────────
+
+• Safe First Move:
+– Ensure the first revealed cell is never a mine by re-rolling or moving mines if necessary.
+• Auto-Reveal of Neighbors (PC middle-click / long-press gesture):
+– If a revealed cell shows a digit X and exactly X flags exist in its neighbors, automatically reveal the unrevealed, non-flagged neighbors.
+• Custom Board Sizes:
+– Allow the user to input width, height, and mine count for a custom challenge.
+• Graphics & Animations:
+– Animate cascading reveals or mine explosions.
+• Sound & Haptic Feedback:
+– Use vibrations on mobile for flags or mine explosions.
+• Persistent Stats/High Scores:
+– Store best times for each difficulty level.

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Stack } from 'expo-router';
+import { Stack, Redirect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { useFonts, Inter_400Regular, Inter_700Bold } from '@expo-google-fonts/inter';
@@ -33,7 +33,9 @@ export default function RootLayout() {
         headerShown: false,
         animation: 'fade',
       }}>
-        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="index" options={{ redirect: true }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="game" options={{ presentation: 'fullScreenModal' }} />
       </Stack>
       <StatusBar style="light" />
     </>
