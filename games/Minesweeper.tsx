@@ -34,6 +34,7 @@ export default function Minesweeper() {
   const [gameState, setGameState] = useState<GameState>('playing');
   const [startTime, setStartTime] = useState(Date.now());
   const [isFlagMode, setIsFlagMode] = useState(false);
+  const [isFirstMove, setIsFirstMove] = useState(true);
 
   // Calculate the maximum board size that will fit on screen
   const screenWidth = Dimensions.get('window').width;
@@ -89,15 +90,35 @@ export default function Minesweeper() {
       }))
     );
 
-    // Place mines randomly
-    let minesPlaced = 0;
-    while (minesPlaced < mines) {
-      const x = Math.floor(Math.random() * width);
-      const y = Math.floor(Math.random() * height);
-      if (!newBoard[y][x].isMine) {
-        newBoard[y][x].isMine = true;
-        minesPlaced++;
+    setBoard(newBoard);
+    setGameState('playing');
+    setStartTime(Date.now());
+    setIsFirstMove(true);
+  };
+
+  const placeMines = (firstY: number, firstX: number) => {
+    const newBoard = [...board.map(row => [...row])];
+    const { mines } = DIFFICULTY_SETTINGS[difficulty];
+    const height = newBoard.length;
+    const width = newBoard[0].length;
+
+    // Create a list of all possible positions except the first click and its surroundings
+    const availablePositions: [number, number][] = [];
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        // Skip the first click position and its surrounding cells
+        if (Math.abs(y - firstY) <= 1 && Math.abs(x - firstX) <= 1) continue;
+        availablePositions.push([y, x]);
       }
+    }
+
+    // Randomly place mines
+    let minesPlaced = 0;
+    while (minesPlaced < mines && availablePositions.length > 0) {
+      const randomIndex = Math.floor(Math.random() * availablePositions.length);
+      const [y, x] = availablePositions.splice(randomIndex, 1)[0];
+      newBoard[y][x].isMine = true;
+      minesPlaced++;
     }
 
     // Calculate adjacent mines
@@ -119,14 +140,8 @@ export default function Minesweeper() {
       }
     }
 
-    setBoard(newBoard);
-    setGameState('playing');
-    setStartTime(Date.now());
+    return newBoard;
   };
-
-  useEffect(() => {
-    initializeBoard();
-  }, [difficulty]);
 
   const revealEmpty = (y: number, x: number, newBoard: Cell[][]) => {
     const height = newBoard.length;
@@ -152,15 +167,21 @@ export default function Minesweeper() {
   const revealCell = (y: number, x: number) => {
     if (gameState !== 'playing' || board[y][x].state !== 'hidden') return;
 
-    const newBoard = [...board.map(row => [...row])];
-    const height = board.length;
-    const width = board[0].length;
+    let newBoard = [...board.map(row => [...row])];
     
-    if (board[y][x].isMine) {
+    // Handle first move
+    if (isFirstMove) {
+      newBoard = placeMines(y, x);
+      setIsFirstMove(false);
+    }
+
+    if (newBoard[y][x].isMine) {
       // Game over - reveal all mines
+      const height = newBoard.length;
+      const width = newBoard[0].length;
       for (let i = 0; i < height; i++) {
         for (let j = 0; j < width; j++) {
-          if (board[i][j].isMine) {
+          if (newBoard[i][j].isMine) {
             newBoard[i][j].state = 'revealed';
           }
         }
@@ -175,9 +196,11 @@ export default function Minesweeper() {
 
     // Check for win
     let hiddenNonMines = 0;
+    const height = newBoard.length;
+    const width = newBoard[0].length;
     for (let i = 0; i < height; i++) {
       for (let j = 0; j < width; j++) {
-        if (!board[i][j].isMine && board[i][j].state === 'hidden') {
+        if (!newBoard[i][j].isMine && newBoard[i][j].state === 'hidden') {
           hiddenNonMines++;
         }
       }
@@ -286,7 +309,9 @@ export default function Minesweeper() {
 
     const cell = board[y][x];
     
-    if (action === 'doubleClick' || (Platform.OS !== 'web' && action === 'longPress' && cell.state === 'revealed')) {
+    if (action === 'doubleClick' || 
+        (Platform.OS !== 'web' && action === 'longPress' && cell.state === 'revealed') ||
+        (action === 'press' && cell.state === 'revealed' && cell.adjacentMines > 0)) {
       revealSurroundingCells(y, x);
     } else if (Platform.OS !== 'web' && action === 'longPress') {
       toggleFlag(y, x);
@@ -296,6 +321,10 @@ export default function Minesweeper() {
       revealCell(y, x);
     }
   };
+
+  useEffect(() => {
+    initializeBoard();
+  }, [difficulty]);
 
   return (
     <View style={styles.container}>
