@@ -11,8 +11,8 @@ interface NumberPadProps {
 }
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const PAD_WIDTH = SCREEN_WIDTH - 40; // Account for container padding
-const BUTTON_SIZE = Math.min(PAD_WIDTH / 15, 30); // Much smaller maximum button size
+const PAD_WIDTH = SCREEN_WIDTH - 40;
+const BUTTON_SIZE = Math.min(PAD_WIDTH / 30, 20); // Drastically smaller buttons
 
 export default function NumberPad({
   onNumberPress,
@@ -24,82 +24,90 @@ export default function NumberPad({
   const numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
   return (
-    <View style={styles.container}>
-      <View style={styles.numberGrid}>
-        {numbers.map((number) => (
-          <TouchableOpacity
-            key={number}
-            style={[styles.numberButton, isNotesMode && styles.noteModeButton]}
-            onPress={() => {
-              Alert.alert('Number Pressed', `You pressed ${number}`);
-              onNumberPress(number);
-            }}
+    <View style={styles.outerContainer}>
+      <View style={styles.container}>
+        <View style={styles.leftSection}>
+          <View style={styles.numberGrid}>
+            {numbers.map((number) => (
+              <TouchableOpacity
+                key={number}
+                style={[styles.numberButton, isNotesMode && styles.noteModeButton]}
+                onPress={() => onNumberPress(number)}
+              >
+                <Text style={[styles.numberText, isNotesMode && styles.noteModeText]}>
+                  {number}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+        <View style={styles.rightSection}>
+          <TouchableOpacity 
+            style={[styles.controlButton, { backgroundColor: '#007AFF' }]} 
+            onPress={onHint}
           >
-            <Text style={[styles.numberText, isNotesMode && styles.noteModeText]}>
-              {number}
-            </Text>
+            <Ionicons name="bulb-outline" size={14} color="#fff" />
+            <Text style={styles.controlText}>Hint</Text>
           </TouchableOpacity>
-        ))}
-      </View>
-      <View style={styles.controls}>
-        <TouchableOpacity 
-          style={[styles.controlButton, { backgroundColor: '#007AFF' }]} 
-          onPress={() => {
-            Alert.alert('Hint', 'Hint button pressed');
-            onHint();
-          }}
-        >
-          <Ionicons name="bulb-outline" size={20} color="#fff" />
-          <Text style={styles.controlText}>Hint</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.controlButton, { backgroundColor: '#32CD32' }]} 
-          onPress={() => {
-            Alert.alert('Erase', 'Erase button pressed');
-            onErase();
-          }}
-        >
-          <Ionicons name="backspace" size={20} color="#fff" />
-          <Text style={styles.controlText}>Erase</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.controlButton, styles.quitButton]} 
-          onPress={() => {
-            Alert.alert('Quit', 'Quit button pressed');
-            onQuit();
-          }}
-        >
-          <Ionicons name="exit-outline" size={20} color="#fff" />
-          <Text style={styles.controlText}>Quit</Text>
-        </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.controlButton, { backgroundColor: '#32CD32' }]} 
+            onPress={onErase}
+          >
+            <Ionicons name="backspace" size={14} color="#fff" />
+            <Text style={styles.controlText}>Erase</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.controlButton, styles.quitButton]} 
+            onPress={onQuit}
+          >
+            <Ionicons name="exit-outline" size={14} color="#fff" />
+            <Text style={styles.controlText}>Quit</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  outerContainer: {
+    width: '100%',
+    gap: 4,
+  },
   container: {
-    padding: 4,
-    backgroundColor: '#1a1a1a',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    borderRadius: 6,
+    backgroundColor: '#1a1a1a',
+    borderRadius: 4,
     borderWidth: 1,
     borderColor: '#3C3C3E',
-    width: '100%',
+    padding: 4,
+    height: 120,
+  },
+  leftSection: {
+    flex: 3,
+    height: '100%',
+    justifyContent: 'center',
+  },
+  rightSection: {
+    flex: 1,
+    height: '100%',
+    justifyContent: 'space-around',
+    paddingLeft: 4,
   },
   numberGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
-    marginBottom: 4,
-    gap: 4,
-    width: '100%',
+    alignContent: 'center',
+    gap: 2,
   },
   numberButton: {
     width: BUTTON_SIZE,
     height: BUTTON_SIZE,
     backgroundColor: '#333',
-    borderRadius: 4,
+    borderRadius: 2,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
@@ -110,24 +118,17 @@ const styles = StyleSheet.create({
   },
   numberText: {
     color: '#fff',
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: 'bold',
   },
   noteModeText: {
     color: '#4a9eff',
   },
-  controls: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 4,
-    marginTop: 4,
-    width: '100%',
-  },
   controlButton: {
-    width: BUTTON_SIZE * 2,
-    height: BUTTON_SIZE * 1.5,
+    width: '100%',
+    height: BUTTON_SIZE * 1.2,
     backgroundColor: '#333',
-    borderRadius: 4,
+    borderRadius: 2,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
@@ -136,10 +137,24 @@ const styles = StyleSheet.create({
   controlText: {
     color: '#fff',
     fontSize: 8,
-    marginTop: 2,
+    marginTop: 1,
     fontWeight: '500',
   },
   quitButton: {
     backgroundColor: '#661a1a',
+  },
+  modeToggle: {
+    backgroundColor: '#333',
+    padding: 4,
+    borderRadius: 4,
+    alignItems: 'center',
+  },
+  modeToggleActive: {
+    backgroundColor: '#1a3f66',
+  },
+  modeToggleText: {
+    color: '#fff',
+    fontSize: 10,
+    fontFamily: 'Inter-Medium',
   },
 }); 

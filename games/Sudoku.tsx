@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View, Dimensions, TouchableOpacity, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import SudokuCell from '../components/SudokuCell';
-import NumberPad from '../components/SudokuNumberPad';
+import SudokuControls from '../components/SudokuControls';
 import GameOverBanner from '../components/GameOverBanner';
 import { Cell, Difficulty, GameState, Position } from '../types/sudoku';
 import {
@@ -16,16 +16,16 @@ import {
 } from '../lib/sudokuLogic';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const headerHeight = 60; // Reduced header height
-const controlsHeight = 120; // Reduced controls height
-const padding = 20; // Reduced padding
+const headerHeight = 60;
+const controlsHeight = 80; // Reduced from 120
+const padding = 20;
 
 const availableWidth = SCREEN_WIDTH - padding * 2;
 const availableHeight = SCREEN_HEIGHT - headerHeight - controlsHeight - padding * 2;
 
 const BOARD_SIZE = Math.min(
   availableWidth,
-  availableHeight * 0.9 // Use 90% of available height to ensure controls are visible
+  availableHeight * 0.85 // Reduced from 0.9 to give more space to controls
 );
 const CELL_SIZE = BOARD_SIZE / 9;
 
@@ -321,7 +321,6 @@ export default function Sudoku() {
   return (
     <View style={styles.container}>
       <View style={styles.topSection}>
-        {/* Test banner - made smaller */}
         <View style={styles.testBanner}>
           <Text style={styles.testText}>SUDOKU</Text>
         </View>
@@ -336,7 +335,6 @@ export default function Sudoku() {
                   diff === gameState.difficulty && styles.activeDifficulty
                 ]}
                 onPress={() => {
-                  Alert.alert('Difficulty Selected', `Changing to ${diff} mode`);
                   setGameState(createInitialGameState(diff));
                   setTimer(0);
                 }}
@@ -376,26 +374,18 @@ export default function Sudoku() {
           ))}
         </View>
 
-        <View style={styles.inputContainer}>
-          <NumberPad
+        <View style={styles.controlsSection}>
+          <SudokuControls
             onNumberPress={handleNumberPress}
             onErase={handleErase}
             onHint={handleHint}
             onQuit={handleQuit}
             isNotesMode={isNotesMode}
+            onToggleMode={() => setIsNotesMode(!isNotesMode)}
           />
-          <TouchableOpacity
-            style={[styles.modeToggle, isNotesMode && styles.modeToggleActive]}
-            onPress={() => setIsNotesMode(!isNotesMode)}
-          >
-            <Text style={styles.modeToggleText}>
-              {isNotesMode ? 'Notes Mode' : 'Normal Mode'}
-            </Text>
-          </TouchableOpacity>
         </View>
       </View>
 
-      {/* GameOverBanner with absolute positioning */}
       {(gameState.isComplete || showQuitBanner) && (
         <View style={styles.bannerContainer}>
           <GameOverBanner
@@ -484,36 +474,19 @@ const styles = StyleSheet.create({
   gameSection: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingBottom: padding,
+    gap: 10,
   },
   board: {
     borderWidth: 2,
     borderColor: '#999',
-    marginBottom: 10,
   },
   row: {
     flexDirection: 'row',
   },
-  inputContainer: {
+  controlsSection: {
     width: '100%',
     height: controlsHeight,
     justifyContent: 'flex-end',
-  },
-  modeToggle: {
-    backgroundColor: '#333',
-    padding: 4,
-    borderRadius: 4,
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  modeToggleActive: {
-    backgroundColor: '#1a3f66',
-  },
-  modeToggleText: {
-    color: '#fff',
-    fontSize: 10,
-    fontFamily: 'Inter-Medium',
   },
   bannerContainer: {
     position: 'absolute',
