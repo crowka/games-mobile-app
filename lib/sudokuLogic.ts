@@ -140,11 +140,11 @@ export function solveSudoku(board: Cell[][]): boolean {
   }
 
   const { row, col } = emptyCell;
+  const numbers = shuffleArray([1, 2, 3, 4, 5, 6, 7, 8, 9]);
 
-  for (let num = 1; num <= 9; num++) {
+  for (const num of numbers) {
     if (isValidPlacement(board, row, col, num)) {
       // Try placing the number
-      const prevValue = board[row][col].value;
       board[row][col].value = num;
 
       if (solveSudoku(board)) {
@@ -152,7 +152,7 @@ export function solveSudoku(board: Cell[][]): boolean {
       }
 
       // If placing the number didn't lead to a solution, backtrack
-      board[row][col].value = prevValue;
+      board[row][col].value = 0;
     }
   }
 
@@ -161,7 +161,9 @@ export function solveSudoku(board: Cell[][]): boolean {
 
 export function generatePuzzle(difficulty: Difficulty): Cell[][] {
   const board = createEmptyBoard();
-  solveSudoku(board); // Generate a complete solution
+  
+  // Start with a completely empty board and let solveSudoku generate a random solution
+  solveSudoku(board);
 
   // Create a copy of the solved board
   const puzzle = board.map(row =>
@@ -172,22 +174,51 @@ export function generatePuzzle(difficulty: Difficulty): Cell[][] {
     }))
   );
 
-  // Remove numbers based on difficulty
+  // Remove numbers based on difficulty using a random pattern
   const cellsToRemove = 81 - INITIAL_GIVENS[difficulty];
   let removedCells = 0;
+  const positions = shuffleArray(Array.from({ length: 81 }, (_, i) => ({
+    row: Math.floor(i / 9),
+    col: i % 9
+  })));
 
-  while (removedCells < cellsToRemove) {
-    const row = Math.floor(Math.random() * BOARD_SIZE);
-    const col = Math.floor(Math.random() * BOARD_SIZE);
-
-    if (puzzle[row][col].value !== 0) {
-      puzzle[row][col].value = 0;
-      puzzle[row][col].isGiven = false;
+  for (const pos of positions) {
+    if (removedCells >= cellsToRemove) break;
+    
+    // Keep the cell if removing it would make the puzzle unsolvable
+    const originalValue = puzzle[pos.row][pos.col].value;
+    puzzle[pos.row][pos.col].value = 0;
+    puzzle[pos.row][pos.col].isGiven = false;
+    
+    // Make a copy of the puzzle to test solvability
+    const testPuzzle = puzzle.map(row =>
+      row.map(cell => ({
+        ...cell,
+        candidates: new Set<number>(),
+        notes: new Set<number>(),
+      }))
+    );
+    
+    // If puzzle becomes unsolvable, restore the value
+    if (!solveSudoku(testPuzzle)) {
+      puzzle[pos.row][pos.col].value = originalValue;
+      puzzle[pos.row][pos.col].isGiven = true;
+    } else {
       removedCells++;
     }
   }
 
   return puzzle;
+}
+
+// Helper function to shuffle an array
+function shuffleArray<T>(array: T[]): T[] {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
 }
 
 export function checkWinCondition(board: Cell[][]): boolean {
