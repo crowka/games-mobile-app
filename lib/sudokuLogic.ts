@@ -62,7 +62,7 @@ export function isValidPlacement(board: Cell[][], row: number, col: number, valu
 }
 
 export function validateBoard(board: Cell[][]): Cell[][] {
-  // Create a new board with error flags
+  // Create a new board with error flags reset
   const validatedBoard = board.map(row =>
     row.map(cell => ({
       ...cell,
@@ -76,12 +76,45 @@ export function validateBoard(board: Cell[][]): Cell[][] {
       const value = validatedBoard[row][col].value;
       if (value === 0) continue;
 
-      // Temporarily set cell to 0 to check against other cells
-      validatedBoard[row][col].value = 0;
-      if (!isValidPlacement(validatedBoard, row, col, value)) {
-        validatedBoard[row][col].isError = true;
+      // Check row
+      for (let i = 0; i < BOARD_SIZE; i++) {
+        if (i !== col && validatedBoard[row][i].value === value) {
+          validatedBoard[row][col].isError = true;
+          validatedBoard[row][i].isError = true;
+          console.log(`Row conflict found: Value ${value} appears at (${row},${col}) and (${row},${i})`);
+          // Return immediately when we find the first error
+          return validatedBoard;
+        }
       }
-      validatedBoard[row][col].value = value;
+
+      // Check column
+      for (let i = 0; i < BOARD_SIZE; i++) {
+        if (i !== row && validatedBoard[i][col].value === value) {
+          validatedBoard[row][col].isError = true;
+          validatedBoard[i][col].isError = true;
+          console.log(`Column conflict found: Value ${value} appears at (${row},${col}) and (${i},${col})`);
+          // Return immediately when we find the first error
+          return validatedBoard;
+        }
+      }
+
+      // Check 3x3 box
+      const boxRow = Math.floor(row / BOX_SIZE) * BOX_SIZE;
+      const boxCol = Math.floor(col / BOX_SIZE) * BOX_SIZE;
+      for (let i = 0; i < BOX_SIZE; i++) {
+        for (let j = 0; j < BOX_SIZE; j++) {
+          const currentRow = boxRow + i;
+          const currentCol = boxCol + j;
+          if ((currentRow !== row || currentCol !== col) && 
+              validatedBoard[currentRow][currentCol].value === value) {
+            validatedBoard[row][col].isError = true;
+            validatedBoard[currentRow][currentCol].isError = true;
+            console.log(`Box conflict found: Value ${value} appears at (${row},${col}) and (${currentRow},${currentCol})`);
+            // Return immediately when we find the first error
+            return validatedBoard;
+          }
+        }
+      }
     }
   }
 
@@ -206,100 +239,65 @@ export function getCandidates(board: Cell[][], row: number, col: number): Set<nu
   return candidates;
 }
 
-export function getHint(board: Cell[][], difficulty: Difficulty): string {
-  console.log('getHint called with difficulty:', difficulty);
-  
-  // Count empty cells in each row, column, and box
-  const rowCounts = Array(9).fill(0);
-  const colCounts = Array(9).fill(0);
-  const boxCounts = Array(9).fill(0);
-  
-  for (let row = 0; row < 9; row++) {
-    for (let col = 0; col < 9; col++) {
-      if (board[row][col].value === 0) {
-        rowCounts[row]++;
-        colCounts[col]++;
-        const boxIndex = Math.floor(row / 3) * 3 + Math.floor(col / 3);
-        boxCounts[boxIndex]++;
+export function findHintCell(board: Cell[][]): { row: number; col: number; possibleNumbers: number[]; isError?: boolean; currentValue?: number } | null {
+  // First check for errors in filled cells
+  for (let row = 0; row < BOARD_SIZE; row++) {
+    for (let col = 0; col < BOARD_SIZE; col++) {
+      const value = board[row][col].value;
+      if (value !== 0) {
+        // Temporarily remove the value to check if it's valid
+        const originalValue = value;
+        board[row][col].value = 0;
+        const isValid = isValidPlacement(board, row, col, originalValue);
+        board[row][col].value = originalValue;
+
+        if (!isValid) {
+          return {
+            row,
+            col,
+            possibleNumbers: [],
+            isError: true,
+            currentValue: originalValue
+          };
+        }
       }
     }
   }
 
-  console.log('Empty cell counts:', {
-    rows: rowCounts,
-    cols: colCounts,
-    boxes: boxCounts
-  });
+  // If no errors, find most constrained empty cell
+  let bestCell = null;
+  let minPossibilities = 10;
+  let bestPossibleNumbers: number[] = [];
 
-  // Find the most constrained area
-  const minRowCount = Math.min(...rowCounts);
-  const minColCount = Math.min(...colCounts);
-  const minBoxCount = Math.min(...boxCounts);
+  for (let row = 0; row < BOARD_SIZE; row++) {
+    for (let col = 0; col < BOARD_SIZE; col++) {
+      if (board[row][col].value === 0) {
+        const possibleNumbers = [];
+        for (let num = 1; num <= 9; num++) {
+          if (isValidPlacement(board, row, col, num)) {
+            possibleNumbers.push(num);
+          }
+        }
 
-  console.log('Min counts:', { minRowCount, minColCount, minBoxCount });
-
-  let hintType: 'row' | 'col' | 'box';
-  let index: number;
-
-  if (minRowCount <= minColCount && minRowCount <= minBoxCount) {
-    hintType = 'row';
-    index = rowCounts.indexOf(minRowCount);
-  } else if (minColCount <= minBoxCount) {
-    hintType = 'col';
-    index = colCounts.indexOf(minColCount);
-  } else {
-    hintType = 'box';
-    index = boxCounts.indexOf(minBoxCount);
+        if (possibleNumbers.length > 0 && possibleNumbers.length < minPossibilities) {
+          minPossibilities = possibleNumbers.length;
+          bestCell = { row, col };
+          bestPossibleNumbers = possibleNumbers;
+        }
+      }
+    }
   }
 
-  console.log('Selected hint type:', hintType, 'index:', index);
-
-  let hint = '';
-
-  // Generate hint based on difficulty
-  switch (difficulty) {
-    case Difficulty.EASY:
-      switch (hintType) {
-        case 'row':
-          hint = `Look at row ${index + 1}, it's almost complete!`;
-          break;
-        case 'col':
-          hint = `Column ${index + 1} needs just a few more numbers.`;
-          break;
-        case 'box':
-          const boxRow = Math.floor(index / 3) + 1;
-          const boxCol = (index % 3) + 1;
-          hint = `Check the box in position (${boxRow}, ${boxCol}), it's nearly done!`;
-          break;
-      }
-      break;
-
-    case Difficulty.MEDIUM:
-      switch (hintType) {
-        case 'row':
-          hint = `Focus on row ${index + 1}, there are only a few possibilities.`;
-          break;
-        case 'col':
-          hint = `Column ${index + 1} has limited options to fill.`;
-          break;
-        case 'box':
-          const boxRow = Math.floor(index / 3) + 1;
-          const boxCol = (index % 3) + 1;
-          hint = `The box at (${boxRow}, ${boxCol}) has some clear patterns.`;
-          break;
-      }
-      break;
-
-    case Difficulty.HARD:
-      hint = `Look for cells with the fewest possible candidates in the most constrained area.`;
-      break;
-
-    default:
-      hint = `Try focusing on areas with fewer empty cells.`;
+  if (bestCell) {
+    return {
+      row: bestCell.row,
+      col: bestCell.col,
+      possibleNumbers: bestPossibleNumbers,
+      isError: false
+    };
   }
 
-  console.log('Returning hint:', hint);
-  return hint;
+  return null;
 }
 
 function getOrdinalSuffix(num: number): string {

@@ -11,7 +11,7 @@ import {
   checkWinCondition,
   getCandidates,
   validateBoard,
-  getHint,
+  findHintCell,
   getSolution,
 } from '../lib/sudokuLogic';
 
@@ -38,6 +38,8 @@ export default function Sudoku() {
   const [isNotesMode, setIsNotesMode] = useState(false);
   const [showQuitBanner, setShowQuitBanner] = useState(false);
   const [solution, setSolution] = useState<Cell[][] | null>(null);
+  const [hintCell, setHintCell] = useState<Position | null>(null);
+  const [hintMessage, setHintMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!gameState.isComplete) {
@@ -161,74 +163,70 @@ export default function Sudoku() {
   };
 
   const handleHint = () => {
-    // Immediate debug alert
-    Alert.alert('Debug', 'Hint button was pressed');
-    
-    console.log('Hint button pressed in Sudoku component');
-    console.log('Current game state:', {
-      isComplete: gameState.isComplete,
-      selectedCell: gameState.selectedCell,
-      difficulty: gameState.difficulty
-    });
+    // Clear console
+    if (typeof window !== 'undefined' && window.console) {
+      window.console.clear();
+      // Force clear by adding empty lines
+      console.log('\n'.repeat(50));
+    }
 
     if (gameState.isComplete) {
-      console.log('Game is complete, returning');
+      Alert.alert('Game Complete', 'Congratulations! You have completed the puzzle!');
       return;
     }
 
-    if (gameState.selectedCell) {
-      console.log('Cell selected:', gameState.selectedCell);
-      const { row, col } = gameState.selectedCell;
-      const cell = gameState.board[row][col];
-      console.log('Selected cell state:', {
-        isGiven: cell.isGiven,
-        value: cell.value
-      });
-      
-      if (cell.isGiven || cell.value !== 0) {
-        console.log('Cell is given or not empty, showing alert');
-        Alert.alert(
-          'Hint',
-          'Please select an empty cell for a specific hint.',
-          [{ text: 'OK' }],
-          { cancelable: true }
-        );
-        return;
-      }
-
-      console.log('Getting solution for selected cell');
-      const solvedBoard = getSolution([...gameState.board]);
-      console.log('Solution found:', !!solvedBoard);
-      
-      if (solvedBoard) {
-        const correctValue = solvedBoard[row][col].value;
-        console.log('Correct value for selected cell:', correctValue);
-        Alert.alert(
-          'Hint',
-          `Try placing ${correctValue} in this cell.`,
-          [{ text: 'OK' }],
-          { cancelable: true }
-        );
-      } else {
-        console.log('No solution found, showing alert');
-        Alert.alert(
-          'Hint',
-          'No solution available for the current board state.',
-          [{ text: 'OK' }],
-          { cancelable: true }
-        );
-      }
-    } else {
-      console.log('No cell selected, getting general hint');
-      const hint = getHint(gameState.board, gameState.difficulty);
-      console.log('General hint received:', hint);
-      Alert.alert(
-        'Hint',
-        hint,
-        [{ text: 'OK' }],
-        { cancelable: true }
-      );
+    const hint = findHintCell(gameState.board);
+    
+    if (!hint) {
+      Alert.alert('No Hints', 'No hints available at this time.');
+      return;
     }
+
+    // Set the hint cell and select it
+    setHintCell({ row: hint.row, col: hint.col });
+    setGameState(prev => ({
+      ...prev,
+      selectedCell: { row: hint.row, col: hint.col }
+    }));
+
+    // Handle error cells differently from hint cells
+    if (hint.isError) {
+      const message = `❌ Error found! The number ${hint.currentValue} at row ${hint.row + 1}, column ${hint.col + 1} conflicts with another cell. Please fix this error first.`;
+      setHintMessage(message);
+      Alert.alert('Error Found', message);
+      
+      // Keep error highlighting longer
+      setTimeout(() => {
+        setHintCell(null);
+        setHintMessage(null);
+      }, 8000);
+      return;
+    }
+
+    // Handle regular hints based on difficulty
+    let message = '';
+    const cellLocation = `row ${hint.row + 1}, column ${hint.col + 1}`;
+    
+    switch (gameState.difficulty) {
+      case Difficulty.EASY:
+        message = `💡 Hint: The cell at ${cellLocation} can only be filled with ${hint.possibleNumbers.join(' or ')}`;
+        break;
+      case Difficulty.MEDIUM:
+        message = `💡 Hint: The cell at ${cellLocation} has ${hint.possibleNumbers.length} possible numbers. Try to deduce which ones!`;
+        break;
+      case Difficulty.HARD:
+        message = `💡 Hint: Focus on the cell at ${cellLocation}. This is your most constrained option.`;
+        break;
+    }
+
+    setHintMessage(message);
+    Alert.alert('Hint Available', message);
+
+    // Clear hint after 5 seconds for regular hints
+    setTimeout(() => {
+      setHintCell(null);
+      setHintMessage(null);
+    }, 5000);
   };
 
   const handleQuit = () => {
@@ -320,6 +318,15 @@ export default function Sudoku() {
 
   return (
     <View style={styles.container}>
+      {/* Hint message at the top level */}
+      {hintMessage && (
+        <View style={styles.hintMessageContainer}>
+          <Text style={hintMessage.includes('ERROR') ? styles.errorMessageText : styles.hintMessageText}>
+            {hintMessage}
+          </Text>
+        </View>
+      )}
+
       <View style={styles.topSection}>
         <View style={styles.testBanner}>
           <Text style={styles.testText}>SUDOKU</Text>
@@ -365,6 +372,10 @@ export default function Sudoku() {
                   isSelected={
                     gameState.selectedCell?.row === rowIndex &&
                     gameState.selectedCell?.col === colIndex
+                  }
+                  isHighlighted={
+                    hintCell?.row === rowIndex &&
+                    hintCell?.col === colIndex
                   }
                   onPress={handleCellPress}
                   size={CELL_SIZE}
@@ -498,5 +509,35 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 1000,
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
+  },
+  hintMessageContainer: {
+    position: 'absolute',
+    top: 20,
+    left: 0,
+    right: 0,
+    zIndex: 3000,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    borderRadius: 8,
+    margin: 10,
+  },
+  hintMessageText: {
+    color: '#ffffff',
+    fontSize: 16,
+    textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
+  },
+  errorMessageText: {
+    color: '#ff4444',
+    fontSize: 18,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
   },
 }); 

@@ -1,5 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import SudokuModeToggle from './SudokuModeToggle';
 
 interface SudokuControlsProps {
@@ -20,32 +21,51 @@ const SudokuControls: React.FC<SudokuControlsProps> = ({
   onToggleMode,
 }) => {
   const numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9];
-  const BUTTON_SIZE = 30;
 
   return (
     <View style={styles.container}>
-      <SudokuModeToggle isNotesMode={isNotesMode} onToggle={onToggleMode} />
+      <View style={styles.topRow}>
+        <SudokuModeToggle isNotesMode={isNotesMode} onToggle={onToggleMode} />
+        <View style={styles.controlButtons}>
+          <TouchableOpacity 
+            style={[styles.controlButton, { backgroundColor: '#32CD32' }]} 
+            onPress={onErase}
+          >
+            <Ionicons name="backspace" size={14} color="#fff" />
+            <Text style={styles.controlText}>Erase</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.controlButton, { backgroundColor: '#007AFF' }]} 
+            onPress={onHint}
+          >
+            <Ionicons name="bulb-outline" size={14} color="#fff" />
+            <Text style={styles.controlText}>Hint</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.controlButton, { backgroundColor: '#FF3B30' }]} 
+            onPress={onQuit}
+          >
+            <Ionicons name="exit-outline" size={14} color="#fff" />
+            <Text style={styles.controlText}>Quit</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
       <View style={styles.numberGrid}>
         {numbers.map((num) => (
           <TouchableOpacity
             key={num}
-            style={styles.numberButton}
+            style={[
+              styles.numberButton,
+              isNotesMode && styles.noteModeButton
+            ]}
             onPress={() => onNumberPress(num)}
           >
-            <Text style={styles.numberText}>{num}</Text>
+            <Text style={[
+              styles.numberText,
+              isNotesMode && styles.noteModeText
+            ]}>{num}</Text>
           </TouchableOpacity>
         ))}
-      </View>
-      <View style={styles.controlButtons}>
-        <TouchableOpacity style={styles.controlButton} onPress={onErase}>
-          <Text style={styles.controlText}>Erase</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.controlButton} onPress={onHint}>
-          <Text style={styles.controlText}>Hint</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.controlButton} onPress={onQuit}>
-          <Text style={styles.controlText}>Quit</Text>
-        </TouchableOpacity>
       </View>
     </View>
   );
@@ -54,50 +74,53 @@ const SudokuControls: React.FC<SudokuControlsProps> = ({
 const styles = StyleSheet.create({
   container: {
     width: '100%',
-    padding: 5,
+    gap: 8,
+  },
+  topRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#f0f0f0',
-    borderRadius: 8,
+    gap: 8,
   },
   numberGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
     gap: 4,
-    marginBottom: 4,
   },
   numberButton: {
-    width: 30,
-    height: 30,
-    backgroundColor: '#fff',
+    width: 36,
+    height: 36,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#2C2C2E',
     borderRadius: 4,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 1,
+    borderWidth: 1,
+    borderColor: '#3C3C3E',
+  },
+  noteModeButton: {
+    backgroundColor: '#1C1C1E',
+    borderColor: '#2C2C2E',
   },
   numberText: {
-    fontSize: 14,
+    color: '#fff',
+    fontSize: 16,
     fontWeight: '500',
+  },
+  noteModeText: {
+    color: '#8E8E93',
   },
   controlButtons: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
+    gap: 4,
   },
   controlButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: '#4a90e2',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 4,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 1,
   },
   controlText: {
     color: '#fff',
