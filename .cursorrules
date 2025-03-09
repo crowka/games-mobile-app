@@ -153,3 +153,156 @@ D. UI/Frontend Updates • Refresh the board after each action.
 – Use vibrations on mobile for flags or mine explosions.
 • Persistent Stats/High Scores:
 – Store best times for each difficulty level.
+
+Sudoku rules: 
+Data Structures & Classes ────────────────────────────────────────────────
+1.1 Cell Object (Optional, for clarity) • Attributes: – value (integer, 0 if empty, 1–9 for digits).
+– isGiven (boolean): true if this value is part of the puzzle’s initial “givens.”
+– candidates (set or boolean array): list of possible candidates if using “pencil marks.”
+
+• Methods (optional): – setValue(newValue): sets the cell’s digit.
+– resetValue(): clears the cell’s digit to 0 (empty).
+
+1.2 Board (Sudoku Grid) • Attributes: – grid (2D array of Cells or integers), 9×9 in a standard Sudoku.
+– difficulty (enum or string): Easy, Medium, Hard.
+– puzzleSeed (optional): used if randomly generating puzzles.
+– solver (a method or separate class) to solve the Sudoku internally.
+
+• Methods (suggested):
+
+initializeBoard(difficulty):
+– Generate or load a Sudoku puzzle consistent with the chosen difficulty (Easy, Medium, Hard).
+– Fill the board with givens and mark those cells as isGiven = true.
+– Mark all other cells as empty.
+
+isValidPlacement(row, col, digit):
+– Checks if placing digit in grid[row][col] is valid according to Sudoku rules:
+
+Digit not already in row.
+Digit not already in column.
+Digit not already in the 3×3 sub-box.
+– Returns true if valid, false otherwise.
+placeValue(row, col, digit):
+– If isValidPlacement(...) is true and the cell is not a given, update the cell’s value.
+– Otherwise, reject or throw an error if invalid.
+
+clearValue(row, col):
+– If the cell is not a given, set the value to 0 (empty).
+
+checkWinCondition():
+– If all cells are filled and each row/column/3×3 box is valid, user wins.
+
+generatePuzzle(difficulty):
+– Generates a complete 9×9 Sudoku solution (using a solver).
+– Removes digits (while ensuring uniqueness) to reach the chosen difficulty.
+– The difficulty typically depends on how many clues remain and certain puzzle constraints (e.g., minimal givens or required logic techniques).
+
+solvePuzzle():
+– Uses a backtracking or other algorithm to fill in all empty cells.
+– Typically only used for puzzle generation or a “hint”/“solve” feature.
+
+──────────────────────────────────────────────── 2. Difficulty Levels ────────────────────────────────────────────────
+
+• Easy: Typically around 35–45 givens (clues).
+• Medium: Typically around 25–35 givens.
+• Hard: Often fewer than 25 givens.
+
+Note: The number of givens is only a rough metric for difficulty. Some puzzles with fewer clues might still be straightforward, while some with more clues might be challenging if they require advanced solving techniques.
+
+──────────────────────────────────────────────── 3. Sudoku Game Flow ────────────────────────────────────────────────
+
+Start a new game with a chosen difficulty (Easy, Medium, Hard).
+
+board.initializeBoard(difficulty):
+– Internally calls generatePuzzle(difficulty) (if you’re generating on the fly).
+– Places the puzzle’s givens into the grid.
+
+For each user action (placing, changing, or removing a digit in a cell):
+– If cell.isGiven is true, ignore changes (cannot alter givens).
+– If cell.isGiven is false, attempt board.placeValue(row, col, digit).
+→ If valid, update the cell. If not, provide feedback.
+
+Periodically or after each valid placement, call board.checkWinCondition():
+– If true, show a “You Win!” message.
+
+Optional: – Provide features like “undo,” “hint,” or “auto-pencil marks.”
+
+──────────────────────────────────────────────── 4. User Interactions ────────────────────────────────────────────────
+
+4.1 Touchscreen (Mobile/Tablet)
+
+Tap on a cell to select it.
+Display a numeric keypad (1–9, plus maybe an erase button).
+If the user taps a digit (1–9):
+– Call board.placeValue(selectedRow, selectedCol, digit).
+If the user taps “erase,” call board.clearValue(selectedRow, selectedCol).
+Optional “Pencil Mode”:
+– When active, tapping a digit adds or removes that digit from the cell’s candidates set instead of setting the cell’s final value.
+4.2 Mouse/Keyboard (PC/Desktop)
+
+Click on a cell to select it.
+Type a digit (1–9) on the keyboard to place that value.
+Press Backspace or 0 to clear the cell.
+Optional right-click for a context menu to handle pencil marks.
+Optional “Note Mode” toggle:
+– When active, typed digits are added to the cell’s candidate list instead of setting a final value.
+──────────────────────────────────────────────── 5. Implementation Steps for the LLM ────────────────────────────────────────────────
+
+A. Create Classes
+
+Class Cell (optional):
+– Fields: value, isGiven, candidates.
+– Methods: setValue, resetValue (and possibly manageCandidates).
+
+Class Board (Sudoku):
+– Fields: grid (9×9), difficulty, solver method.
+– Methods: initializeBoard, generatePuzzle, solvePuzzle, placeValue, clearValue, isValidPlacement, checkWinCondition, etc.
+
+B. Pseudocode for Key Methods
+
+initializeBoard(difficulty): – generatePuzzle(difficulty) → returns a 9×9 puzzle arrangement + solution data.
+– For each cell in puzzle:
+if puzzleCell != 0:
+grid[row][col].value = puzzleCell
+grid[row][col].isGiven = true
+else:
+grid[row][col].value = 0
+grid[row][col].isGiven = false
+
+isValidPlacement(row, col, digit): – Check row: ensure digit not in row “row.”
+– Check column: ensure digit not in column “col.”
+– Determine which 3×3 box the cell is in, ensure digit not in that sub-box.
+– Return true if all checks are passed.
+
+placeValue(row, col, digit): – If grid[row][col].isGiven is true, ignore or show error.
+– If isValidPlacement(row, col, digit): grid[row][col].value = digit
+else: // invalid move feedback
+
+checkWinCondition(): – Ensure every cell in grid has a value != 0.
+– Check each row, column, and 3×3 box for duplicates.
+– If no duplicates, user wins.
+
+generatePuzzle(difficulty): – 1) Generate a complete valid Sudoku solution (via a backtracking solver).
+– 2) Remove digits (cells) to create a puzzle, ensuring it remains uniquely solvable.
+– The exact number of cells removed can depend on the difficulty.
+
+C. UI/Frontend Behavior • Visual representation of the 9×9 grid.
+• Fields for givens are usually locked or highlighted.
+• For user placements, show them in a different color or style than givens.
+• Provide feedback if a placement is invalid (optional).
+• Allow toggling “Note Mode” or “Pencil Marks.”
+• Show a timer or puzzle ID if desired.
+
+──────────────────────────────────────────────── 6. Tips & Optional Extensions ────────────────────────────────────────────────
+
+• Pencil Mark Logic:
+– When a user sets a digit, automatically remove that digit from candidates in the corresponding row, column, and box.
+• Highlighting:
+– Highlight row, column, and box of the currently selected cell.
+– Highlight identical digits to help the user spot conflicts.
+• Hints:
+– Implement a hint system that uses the solver to provide the next valid move.
+• Undo/Redo:
+– Keep a stack of moves to allow the user to revert.
+• Multiple Board Sizes:
+– Sudoku variants like 4×4 or 16×16 exist if you want to expand.
