@@ -16,7 +16,17 @@ import {
 } from '../lib/sudokuLogic';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const BOARD_SIZE = Math.min(SCREEN_WIDTH * 0.9, SCREEN_HEIGHT * 0.5);
+const headerHeight = 60; // Reduced header height
+const controlsHeight = 120; // Reduced controls height
+const padding = 20; // Reduced padding
+
+const availableWidth = SCREEN_WIDTH - padding * 2;
+const availableHeight = SCREEN_HEIGHT - headerHeight - controlsHeight - padding * 2;
+
+const BOARD_SIZE = Math.min(
+  availableWidth,
+  availableHeight * 0.9 // Use 90% of available height to ensure controls are visible
+);
 const CELL_SIZE = BOARD_SIZE / 9;
 
 export default function Sudoku() {
@@ -151,44 +161,73 @@ export default function Sudoku() {
   };
 
   const handleHint = () => {
-    if (gameState.isComplete) return;
+    // Immediate debug alert
+    Alert.alert('Debug', 'Hint button was pressed');
+    
+    console.log('Hint button pressed in Sudoku component');
+    console.log('Current game state:', {
+      isComplete: gameState.isComplete,
+      selectedCell: gameState.selectedCell,
+      difficulty: gameState.difficulty
+    });
 
-    // Get the solution for validation
-    const solvedBoard = getSolution([...gameState.board]);
-    if (!solvedBoard) {
-      Alert.alert('Hint', 'No solution available for the current board state.');
+    if (gameState.isComplete) {
+      console.log('Game is complete, returning');
       return;
     }
 
     if (gameState.selectedCell) {
+      console.log('Cell selected:', gameState.selectedCell);
       const { row, col } = gameState.selectedCell;
       const cell = gameState.board[row][col];
+      console.log('Selected cell state:', {
+        isGiven: cell.isGiven,
+        value: cell.value
+      });
       
       if (cell.isGiven || cell.value !== 0) {
-        Alert.alert('Hint', 'Please select an empty cell for a specific hint.');
+        console.log('Cell is given or not empty, showing alert');
+        Alert.alert(
+          'Hint',
+          'Please select an empty cell for a specific hint.',
+          [{ text: 'OK' }],
+          { cancelable: true }
+        );
         return;
       }
 
-      // First show general hint
-      const generalHint = getHint(gameState.board, gameState.difficulty);
-      Alert.alert(
-        'Hint Available',
-        generalHint,
-        [
-          { text: 'OK', style: 'default' },
-          {
-            text: 'More Specific',
-            onPress: () => {
-              const correctValue = solvedBoard[row][col].value;
-              Alert.alert('Specific Hint', `Try placing ${correctValue} in this cell.`);
-            },
-          },
-        ]
-      );
+      console.log('Getting solution for selected cell');
+      const solvedBoard = getSolution([...gameState.board]);
+      console.log('Solution found:', !!solvedBoard);
+      
+      if (solvedBoard) {
+        const correctValue = solvedBoard[row][col].value;
+        console.log('Correct value for selected cell:', correctValue);
+        Alert.alert(
+          'Hint',
+          `Try placing ${correctValue} in this cell.`,
+          [{ text: 'OK' }],
+          { cancelable: true }
+        );
+      } else {
+        console.log('No solution found, showing alert');
+        Alert.alert(
+          'Hint',
+          'No solution available for the current board state.',
+          [{ text: 'OK' }],
+          { cancelable: true }
+        );
+      }
     } else {
-      // If no cell is selected, just show general hint
-      const generalHint = getHint(gameState.board, gameState.difficulty);
-      Alert.alert('Hint', generalHint);
+      console.log('No cell selected, getting general hint');
+      const hint = getHint(gameState.board, gameState.difficulty);
+      console.log('General hint received:', hint);
+      Alert.alert(
+        'Hint',
+        hint,
+        [{ text: 'OK' }],
+        { cancelable: true }
+      );
     }
   };
 
@@ -281,62 +320,98 @@ export default function Sudoku() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.timer}>{formatTime(timer)}</Text>
-        <Text style={styles.difficulty}>{gameState.difficulty}</Text>
-      </View>
+      <View style={styles.topSection}>
+        {/* Test banner - made smaller */}
+        <View style={styles.testBanner}>
+          <Text style={styles.testText}>SUDOKU</Text>
+        </View>
 
-      <View style={[styles.board, { width: BOARD_SIZE, height: BOARD_SIZE }]}>
-        {gameState.board.map((row, rowIndex) => (
-          <View key={rowIndex} style={styles.row}>
-            {row.map((cell, colIndex) => (
-              <SudokuCell
-                key={`${rowIndex}-${colIndex}`}
-                cell={cell}
-                row={rowIndex}
-                col={colIndex}
-                isSelected={
-                  gameState.selectedCell?.row === rowIndex &&
-                  gameState.selectedCell?.col === colIndex
-                }
-                onPress={handleCellPress}
-                size={CELL_SIZE}
-              />
+        <View style={styles.header}>
+          <View style={styles.difficultyContainer}>
+            {[Difficulty.EASY, Difficulty.MEDIUM, Difficulty.HARD].map((diff) => (
+              <TouchableOpacity
+                key={diff}
+                style={[
+                  styles.difficultyButton, 
+                  diff === gameState.difficulty && styles.activeDifficulty
+                ]}
+                onPress={() => {
+                  Alert.alert('Difficulty Selected', `Changing to ${diff} mode`);
+                  setGameState(createInitialGameState(diff));
+                  setTimer(0);
+                }}
+              >
+                <Text style={[
+                  styles.difficultyText,
+                  diff === gameState.difficulty && styles.activeDifficultyText
+                ]}>
+                  {diff.charAt(0) + diff.slice(1).toLowerCase()}
+                </Text>
+              </TouchableOpacity>
             ))}
           </View>
-        ))}
+          <Text style={styles.timer}>{formatTime(timer)}</Text>
+        </View>
       </View>
 
-      <View style={styles.inputContainer}>
-        <NumberPad
-          onNumberPress={handleNumberPress}
-          onErase={handleErase}
-          onHint={handleHint}
-          onQuit={handleQuit}
-          isNotesMode={isNotesMode}
-        />
-        <TouchableOpacity
-          style={[styles.modeToggle, isNotesMode && styles.modeToggleActive]}
-          onPress={() => setIsNotesMode(!isNotesMode)}
-        >
-          <Text style={styles.modeToggleText}>
-            {isNotesMode ? 'Notes Mode' : 'Normal Mode'}
-          </Text>
-        </TouchableOpacity>
+      <View style={styles.gameSection}>
+        <View style={[styles.board, { width: BOARD_SIZE, height: BOARD_SIZE }]}>
+          {gameState.board.map((row, rowIndex) => (
+            <View key={rowIndex} style={styles.row}>
+              {row.map((cell, colIndex) => (
+                <SudokuCell
+                  key={`${rowIndex}-${colIndex}`}
+                  cell={cell}
+                  row={rowIndex}
+                  col={colIndex}
+                  isSelected={
+                    gameState.selectedCell?.row === rowIndex &&
+                    gameState.selectedCell?.col === colIndex
+                  }
+                  onPress={handleCellPress}
+                  size={CELL_SIZE}
+                />
+              ))}
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.inputContainer}>
+          <NumberPad
+            onNumberPress={handleNumberPress}
+            onErase={handleErase}
+            onHint={handleHint}
+            onQuit={handleQuit}
+            isNotesMode={isNotesMode}
+          />
+          <TouchableOpacity
+            style={[styles.modeToggle, isNotesMode && styles.modeToggleActive]}
+            onPress={() => setIsNotesMode(!isNotesMode)}
+          >
+            <Text style={styles.modeToggleText}>
+              {isNotesMode ? 'Notes Mode' : 'Normal Mode'}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
-      <GameOverBanner
-        isVisible={gameState.isComplete || showQuitBanner}
-        onNextGame={handleNextGame}
-        onChooseAnotherGame={() => router.push('/')}
-        onQuit={() => router.push('/')}
-        onShowSolution={handleShowSolution}
-        onSaveAndQuit={handleSaveAndQuit}
-        onContinue={handleContinuePlaying}
-        currentDifficulty={gameState.difficulty}
-        timeElapsed={timer}
-        isQuitDialog={showQuitBanner && !gameState.isComplete}
-      />
+      {/* GameOverBanner with absolute positioning */}
+      {(gameState.isComplete || showQuitBanner) && (
+        <View style={styles.bannerContainer}>
+          <GameOverBanner
+            isVisible={true}
+            onNextGame={handleNextGame}
+            onChooseAnotherGame={() => router.push('/')}
+            onQuit={() => router.push('/')}
+            onShowSolution={handleShowSolution}
+            onSaveAndQuit={handleSaveAndQuit}
+            onContinue={handleContinuePlaying}
+            currentDifficulty={gameState.difficulty}
+            timeElapsed={timer}
+            isQuitDialog={showQuitBanner && !gameState.isComplete}
+          />
+        </View>
+      )}
     </View>
   );
 }
@@ -345,49 +420,110 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000',
-    padding: 10,
+    paddingTop: 10,
+    paddingHorizontal: padding,
+  },
+  topSection: {
+    height: headerHeight,
+    marginBottom: 8,
+  },
+  testBanner: {
+    backgroundColor: '#007AFF',
+    padding: 4,
+    borderRadius: 4,
+    marginBottom: 4,
+    alignItems: 'center',
+  },
+  testText: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
-    paddingHorizontal: 10,
+    gap: 6,
+    width: '100%',
+    backgroundColor: '#1a1a1a',
+    padding: 4,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#3C3C3E',
+  },
+  difficultyContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: 4,
+  },
+  difficultyButton: {
+    flex: 1,
+    padding: 4,
+    borderRadius: 4,
+    backgroundColor: '#2C2C2E',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#3C3C3E',
+  },
+  activeDifficulty: {
+    backgroundColor: '#007AFF',
+    borderColor: '#0A84FF',
+  },
+  difficultyText: {
+    color: '#8E8E93',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  activeDifficultyText: {
+    color: '#FFF',
   },
   timer: {
     color: '#4a9eff',
-    fontSize: 24,
+    fontSize: 14,
     fontFamily: 'Inter-Medium',
   },
-  difficulty: {
-    color: '#fff',
-    fontSize: 18,
-    fontFamily: 'Inter-Regular',
+  gameSection: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: padding,
   },
   board: {
-    alignSelf: 'center',
-    marginBottom: 10,
     borderWidth: 2,
     borderColor: '#999',
+    marginBottom: 10,
   },
   row: {
     flexDirection: 'row',
   },
   inputContainer: {
-    gap: 5,
+    width: '100%',
+    height: controlsHeight,
+    justifyContent: 'flex-end',
   },
   modeToggle: {
     backgroundColor: '#333',
-    padding: 10,
-    borderRadius: 8,
+    padding: 4,
+    borderRadius: 4,
     alignItems: 'center',
+    marginTop: 4,
   },
   modeToggleActive: {
     backgroundColor: '#1a3f66',
   },
   modeToggleText: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: 10,
     fontFamily: 'Inter-Medium',
+  },
+  bannerContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
   },
 }); 

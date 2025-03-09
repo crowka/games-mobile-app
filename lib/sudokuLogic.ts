@@ -110,13 +110,16 @@ export function solveSudoku(board: Cell[][]): boolean {
 
   for (let num = 1; num <= 9; num++) {
     if (isValidPlacement(board, row, col, num)) {
+      // Try placing the number
+      const prevValue = board[row][col].value;
       board[row][col].value = num;
 
       if (solveSudoku(board)) {
         return true;
       }
 
-      board[row][col].value = 0; // Backtrack
+      // If placing the number didn't lead to a solution, backtrack
+      board[row][col].value = prevValue;
     }
   }
 
@@ -204,6 +207,8 @@ export function getCandidates(board: Cell[][], row: number, col: number): Set<nu
 }
 
 export function getHint(board: Cell[][], difficulty: Difficulty): string {
+  console.log('getHint called with difficulty:', difficulty);
+  
   // Count empty cells in each row, column, and box
   const rowCounts = Array(9).fill(0);
   const colCounts = Array(9).fill(0);
@@ -220,10 +225,18 @@ export function getHint(board: Cell[][], difficulty: Difficulty): string {
     }
   }
 
+  console.log('Empty cell counts:', {
+    rows: rowCounts,
+    cols: colCounts,
+    boxes: boxCounts
+  });
+
   // Find the most constrained area
   const minRowCount = Math.min(...rowCounts);
   const minColCount = Math.min(...colCounts);
   const minBoxCount = Math.min(...boxCounts);
+
+  console.log('Min counts:', { minRowCount, minColCount, minBoxCount });
 
   let hintType: 'row' | 'col' | 'box';
   let index: number;
@@ -239,39 +252,54 @@ export function getHint(board: Cell[][], difficulty: Difficulty): string {
     index = boxCounts.indexOf(minBoxCount);
   }
 
+  console.log('Selected hint type:', hintType, 'index:', index);
+
+  let hint = '';
+
   // Generate hint based on difficulty
   switch (difficulty) {
     case Difficulty.EASY:
       switch (hintType) {
         case 'row':
-          return `Look at row ${index + 1}, it's almost complete!`;
+          hint = `Look at row ${index + 1}, it's almost complete!`;
+          break;
         case 'col':
-          return `Column ${index + 1} needs just a few more numbers.`;
+          hint = `Column ${index + 1} needs just a few more numbers.`;
+          break;
         case 'box':
           const boxRow = Math.floor(index / 3) + 1;
           const boxCol = (index % 3) + 1;
-          return `Check the ${boxRow}${getOrdinalSuffix(boxRow)} row, ${boxCol}${getOrdinalSuffix(boxCol)} box.`;
+          hint = `Check the box in position (${boxRow}, ${boxCol}), it's nearly done!`;
+          break;
       }
       break;
 
     case Difficulty.MEDIUM:
       switch (hintType) {
         case 'row':
-          return `Row ${index + 1} has the fewest empty cells.`;
+          hint = `Focus on row ${index + 1}, there are only a few possibilities.`;
+          break;
         case 'col':
-          return `Focus on column ${index + 1}.`;
+          hint = `Column ${index + 1} has limited options to fill.`;
+          break;
         case 'box':
           const boxRow = Math.floor(index / 3) + 1;
           const boxCol = (index % 3) + 1;
-          return `The ${boxRow}×${boxCol} box is a good place to focus.`;
+          hint = `The box at (${boxRow}, ${boxCol}) has some clear patterns.`;
+          break;
       }
       break;
 
     case Difficulty.HARD:
-      return 'Look for cells with the fewest possible candidates.';
+      hint = `Look for cells with the fewest possible candidates in the most constrained area.`;
+      break;
+
+    default:
+      hint = `Try focusing on areas with fewer empty cells.`;
   }
 
-  return 'Try to find cells with the fewest possible numbers.';
+  console.log('Returning hint:', hint);
+  return hint;
 }
 
 function getOrdinalSuffix(num: number): string {
@@ -283,8 +311,8 @@ function getOrdinalSuffix(num: number): string {
   return 'th';
 }
 
-export function getSolution(board: Cell[][]): Cell[][] {
-  // Create a copy of the board
+export function getSolution(board: Cell[][]): Cell[][] | null {
+  // Create a deep copy of the board
   const solution = board.map(row =>
     row.map(cell => ({
       ...cell,
@@ -296,8 +324,9 @@ export function getSolution(board: Cell[][]): Cell[][] {
     }))
   );
 
-  // Solve the puzzle
-  solveSudoku(solution);
-
-  return solution;
+  // Try to solve the puzzle
+  if (solveSudoku(solution)) {
+    return solution;
+  }
+  return null;
 } 
