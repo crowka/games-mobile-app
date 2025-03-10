@@ -269,7 +269,7 @@ export default function Sudoku() {
   const handleShowSolution = () => {
     const solvedBoard = getSolution([...gameState.board]);
     if (solvedBoard) {
-      // First hide the quit banner
+      // Hide the quit banner
       setShowQuitBanner(false);
       
       // Update the board with the solution
@@ -283,19 +283,6 @@ export default function Sudoku() {
         ),
         isComplete: true,
       }));
-
-      // Show an alert with a close button
-      Alert.alert(
-        'Solution',
-        'Take your time to study the solution. Press Close when you are ready to return to the main menu.',
-        [
-          {
-            text: 'Close',
-            onPress: () => router.push('/'),
-          },
-        ],
-        { cancelable: false }
-      );
     }
   };
 
@@ -328,10 +315,6 @@ export default function Sudoku() {
       )}
 
       <View style={styles.topSection}>
-        <View style={styles.testBanner}>
-          <Text style={styles.testText}>SUDOKU</Text>
-        </View>
-
         <View style={styles.header}>
           <View style={styles.difficultyContainer}>
             {[Difficulty.EASY, Difficulty.MEDIUM, Difficulty.HARD].map((diff) => (
@@ -386,18 +369,27 @@ export default function Sudoku() {
         </View>
 
         <View style={styles.controlsSection}>
-          <SudokuControls
-            onNumberPress={handleNumberPress}
-            onErase={handleErase}
-            onHint={handleHint}
-            onQuit={handleQuit}
-            isNotesMode={isNotesMode}
-            onToggleMode={() => setIsNotesMode(!isNotesMode)}
-          />
+          {gameState.isComplete ? (
+            <TouchableOpacity
+              style={styles.quitButton}
+              onPress={() => router.push('/')}
+            >
+              <Text style={styles.quitButtonText}>Quit</Text>
+            </TouchableOpacity>
+          ) : (
+            <SudokuControls
+              onNumberPress={handleNumberPress}
+              onErase={handleErase}
+              onHint={handleHint}
+              onQuit={handleQuit}
+              isNotesMode={isNotesMode}
+              onToggleMode={() => setIsNotesMode(!isNotesMode)}
+            />
+          )}
         </View>
       </View>
 
-      {(gameState.isComplete || showQuitBanner) && (
+      {(showQuitBanner && !gameState.isComplete) && (
         <View style={styles.bannerContainer}>
           <GameOverBanner
             isVisible={true}
@@ -409,7 +401,7 @@ export default function Sudoku() {
             onContinue={handleContinuePlaying}
             currentDifficulty={gameState.difficulty}
             timeElapsed={timer}
-            isQuitDialog={showQuitBanner && !gameState.isComplete}
+            isQuitDialog={true}
           />
         </View>
       )}
@@ -428,42 +420,33 @@ const styles = StyleSheet.create({
     height: headerHeight,
     marginBottom: 8,
   },
-  testBanner: {
-    backgroundColor: '#007AFF',
-    padding: 4,
-    borderRadius: 4,
-    marginBottom: 4,
-    alignItems: 'center',
-  },
-  testText: {
-    color: '#FFF',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
     width: '100%',
     backgroundColor: '#1a1a1a',
-    padding: 4,
-    borderRadius: 4,
+    padding: 8,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#3C3C3E',
+    height: headerHeight - 10,
   },
   difficultyContainer: {
     flex: 1,
     flexDirection: 'row',
-    gap: 4,
+    gap: 8,
   },
   difficultyButton: {
     flex: 1,
-    padding: 4,
-    borderRadius: 4,
+    padding: 8,
+    borderRadius: 8,
     backgroundColor: '#2C2C2E',
     alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
     borderColor: '#3C3C3E',
+    height: '100%',
   },
   activeDifficulty: {
     backgroundColor: '#007AFF',
@@ -471,7 +454,7 @@ const styles = StyleSheet.create({
   },
   difficultyText: {
     color: '#8E8E93',
-    fontSize: 12,
+    fontSize: 16,
     fontWeight: 'bold',
   },
   activeDifficultyText: {
@@ -479,8 +462,10 @@ const styles = StyleSheet.create({
   },
   timer: {
     color: '#4a9eff',
-    fontSize: 14,
+    fontSize: 18,
     fontFamily: 'Inter-Medium',
+    minWidth: 60,
+    textAlign: 'center',
   },
   gameSection: {
     flex: 1,
@@ -539,5 +524,21 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0, 0, 0, 0.75)',
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 3,
+  },
+  quitButton: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#0A84FF',
+  },
+  quitButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 }); 
