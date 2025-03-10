@@ -29,6 +29,24 @@ const BOARD_SIZE = Math.min(
 );
 const CELL_SIZE = BOARD_SIZE / 9;
 
+const INITIAL_SCORES = {
+  [Difficulty.EASY]: 1000,
+  [Difficulty.MEDIUM]: 2000,
+  [Difficulty.HARD]: 3000,
+};
+
+const TARGET_TIMES = {
+  [Difficulty.EASY]: 300,    // 5 minutes
+  [Difficulty.MEDIUM]: 600,  // 10 minutes
+  [Difficulty.HARD]: 900,    // 15 minutes
+};
+
+const PENALTIES = {
+  HINT: 50,          // -50 points per hint
+  WRONG_NUMBER: 30,  // -30 points per wrong number
+  TIME: 10,          // -10 points per minute
+};
+
 export default function Sudoku() {
   const router = useRouter();
   const [gameState, setGameState] = useState<GameState>(() =>
@@ -40,11 +58,22 @@ export default function Sudoku() {
   const [solution, setSolution] = useState<Cell[][] | null>(null);
   const [hintCell, setHintCell] = useState<Position | null>(null);
   const [hintMessage, setHintMessage] = useState<string | null>(null);
+  const [hintsUsed, setHintsUsed] = useState(0);
+  const [score, setScore] = useState(INITIAL_SCORES[Difficulty.EASY]);
 
   useEffect(() => {
     if (!gameState.isComplete) {
       const interval = setInterval(() => {
-        setTimer((prev) => prev + 1);
+        setTimer((prev) => {
+          const newTime = prev + 1;
+          // Apply time penalty every 30 seconds
+          if (newTime % 30 === 0) {
+            setScore(prevScore => 
+              Math.max(0, prevScore - PENALTIES.TIME)
+            );
+          }
+          return newTime;
+        });
       }, 1000);
       return () => clearInterval(interval);
     }
@@ -91,6 +120,7 @@ export default function Sudoku() {
     } else {
       setGameState((prev) => {
         const newBoard = [...prev.board];
+        const oldValue = newBoard[row][col].value;
         newBoard[row][col] = {
           ...newBoard[row][col],
           value: number,
@@ -111,29 +141,39 @@ export default function Sudoku() {
         }
 
         if (isFilled) {
-          // Validate the board and mark errors
+          // Only check if the board is complete, don't mark errors
           const validatedBoard = validateBoard(newBoard);
           let hasErrors = false;
 
-          // Check for errors
+          // Check for errors and apply penalties without highlighting
           for (let r = 0; r < 9; r++) {
             for (let c = 0; c < 9; c++) {
               if (validatedBoard[r][c].isError) {
                 hasErrors = true;
+                // Only apply penalty if this is a new error
+                if (!prev.board[r][c].isError) {
+                  setScore(prevScore => Math.max(0, prevScore - PENALTIES.WRONG_NUMBER));
+                }
               }
             }
           }
 
           return {
             ...prev,
-            board: validatedBoard,
+            board: newBoard, // Use newBoard instead of validatedBoard to avoid showing errors
             isComplete: !hasErrors,
           };
         }
 
+        // Check if the new number creates a conflict but don't show it
+        const validatedBoard = validateBoard(newBoard);
+        if (validatedBoard[row][col].isError) {
+          setScore(prevScore => Math.max(0, prevScore - PENALTIES.WRONG_NUMBER));
+        }
+
         return {
           ...prev,
-          board: newBoard,
+          board: newBoard, // Use newBoard instead of validatedBoard to avoid showing errors
         };
       });
     }
@@ -175,23 +215,32 @@ export default function Sudoku() {
       return;
     }
 
-    const hint = findHintCell(gameState.board);
-    
-    if (!hint) {
-      Alert.alert('No Hints', 'No hints available at this time.');
-      return;
+    // First check for user-filled cells with errors
+    const validatedBoard = validateBoard(gameState.board);
+    let userErrorFound = false;
+    let errorCell = null;
+
+    // Look for errors in user-filled cells only
+    for (let r = 0; r < 9; r++) {
+      for (let c = 0; c < 9; c++) {
+        if (validatedBoard[r][c].isError && !gameState.board[r][c].isGiven) {
+          userErrorFound = true;
+          errorCell = { row: r, col: c, currentValue: gameState.board[r][c].value };
+          break;
+        }
+      }
+      if (userErrorFound) break;
     }
 
-    // Set the hint cell and select it
-    setHintCell({ row: hint.row, col: hint.col });
-    setGameState(prev => ({
-      ...prev,
-      selectedCell: { row: hint.row, col: hint.col }
-    }));
+    if (userErrorFound && errorCell) {
+      // Set the hint cell and select it
+      setHintCell({ row: errorCell.row, col: errorCell.col });
+      setGameState(prev => ({
+        ...prev,
+        selectedCell: { row: errorCell.row, col: errorCell.col }
+      }));
 
-    // Handle error cells differently from hint cells
-    if (hint.isError) {
-      const message = `❌ Error found! The number ${hint.currentValue} at row ${hint.row + 1}, column ${hint.col + 1} conflicts with another cell. Please fix this error first.`;
+      const message = `❌ Error found! The number ${errorCell.currentValue} at row ${errorCell.row + 1}, column ${errorCell.col + 1} conflicts with another cell. Please fix this error first.`;
       setHintMessage(message);
       Alert.alert('Error Found', message);
       
@@ -202,6 +251,29 @@ export default function Sudoku() {
       }, 8000);
       return;
     }
+
+    // If no user errors found, proceed with regular hint
+    const hint = findHintCell(gameState.board);
+    
+    if (!hint) {
+      Alert.alert('No Hints', 'No hints available at this time.');
+      return;
+    }
+
+    // Increment hints used and deduct points
+    setHintsUsed(prev => {
+      const newCount = prev + 1;
+      console.log(`Hints used: ${newCount}`);
+      return newCount;
+    });
+    setScore(prev => Math.max(0, prev - PENALTIES.HINT));
+
+    // Set the hint cell and select it
+    setHintCell({ row: hint.row, col: hint.col });
+    setGameState(prev => ({
+      ...prev,
+      selectedCell: { row: hint.row, col: hint.col }
+    }));
 
     // Handle regular hints based on difficulty
     let message = '';
@@ -295,6 +367,32 @@ export default function Sudoku() {
     setTimer(0);
     setShowQuitBanner(false);
     setSolution(null);
+    setHintsUsed(0);
+    setScore(INITIAL_SCORES[difficulty]);
+  };
+
+  const handleShowRules = () => {
+    Alert.alert(
+      'Sudoku Rules & Scoring',
+      `HOW TO PLAY:
+• Fill the 9×9 grid with numbers 1-9
+• Each row, column, and 3×3 box must contain numbers 1-9 exactly once
+• Some numbers are given as starting clues
+
+DIFFICULTY LEVELS:
+• Easy: Start with 1000 points
+• Medium: Start with 2000 points
+• Hard: Start with 3000 points
+
+SCORING SYSTEM:
+• Time Penalty: -10 points per minute
+• Wrong Number: -30 points
+• Using Hint: -50 points
+• Notes Mode: No penalties for using notes!
+
+Tips: Use Notes Mode to mark possible numbers in cells. Switch difficulty levels using buttons at the top.`,
+      [{ text: 'Got it!', style: 'default' }]
+    );
   };
 
   const formatTime = (seconds: number) => {
@@ -327,6 +425,8 @@ export default function Sudoku() {
                 onPress={() => {
                   setGameState(createInitialGameState(diff));
                   setTimer(0);
+                  setScore(INITIAL_SCORES[diff]);
+                  setHintsUsed(0);
                 }}
               >
                 <Text style={[
@@ -338,7 +438,16 @@ export default function Sudoku() {
               </TouchableOpacity>
             ))}
           </View>
-          <Text style={styles.timer}>{formatTime(timer)}</Text>
+          <View style={styles.statsContainer}>
+            <View style={styles.statItem}>
+              <Text style={styles.statLabel}>Time</Text>
+              <Text style={styles.timer}>{formatTime(timer)}</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={styles.statLabel}>Score</Text>
+              <Text style={styles.score}>{score}</Text>
+            </View>
+          </View>
         </View>
       </View>
 
@@ -377,14 +486,16 @@ export default function Sudoku() {
               <Text style={styles.quitButtonText}>Quit</Text>
             </TouchableOpacity>
           ) : (
-            <SudokuControls
-              onNumberPress={handleNumberPress}
-              onErase={handleErase}
-              onHint={handleHint}
-              onQuit={handleQuit}
-              isNotesMode={isNotesMode}
-              onToggleMode={() => setIsNotesMode(!isNotesMode)}
-            />
+            <View>
+              <SudokuControls
+                onNumberPress={handleNumberPress}
+                onErase={handleErase}
+                onHint={handleHint}
+                onQuit={handleQuit}
+                isNotesMode={isNotesMode}
+                onToggleMode={() => setIsNotesMode(!isNotesMode)}
+              />
+            </View>
           )}
         </View>
       </View>
@@ -540,5 +651,26 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 15,
+    paddingRight: 8,
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statLabel: {
+    color: '#8E8E93',
+    fontSize: 12,
+    fontFamily: 'Inter-Medium',
+  },
+  score: {
+    color: '#4a9eff',
+    fontSize: 18,
+    fontFamily: 'Inter-Medium',
+    minWidth: 60,
+    textAlign: 'center',
   },
 }); 
