@@ -60,6 +60,8 @@ export default function Sudoku() {
   const [hintMessage, setHintMessage] = useState<string | null>(null);
   const [hintsUsed, setHintsUsed] = useState(0);
   const [score, setScore] = useState(INITIAL_SCORES[Difficulty.EASY]);
+  const [completedSections, setCompletedSections] = useState<Set<string>>(new Set());
+  const [isVictoryAnimating, setIsVictoryAnimating] = useState(false);
 
   useEffect(() => {
     if (!gameState.isComplete) {
@@ -78,6 +80,50 @@ export default function Sudoku() {
       return () => clearInterval(interval);
     }
   }, [gameState.isComplete]);
+
+  const checkCompletions = (board: Cell[][]) => {
+    const newCompletions = new Set<string>();
+    
+    // Check rows
+    for (let row = 0; row < 9; row++) {
+      const values = new Set(board[row].map(cell => cell.value));
+      if (values.size === 9 && !values.has(0)) {
+        newCompletions.add(`row-${row}`);
+      }
+    }
+    
+    // Check columns
+    for (let col = 0; col < 9; col++) {
+      const values = new Set(board.map(row => row[col].value));
+      if (values.size === 9 && !values.has(0)) {
+        newCompletions.add(`col-${col}`);
+      }
+    }
+    
+    // Check 3x3 squares
+    for (let blockRow = 0; blockRow < 3; blockRow++) {
+      for (let blockCol = 0; blockCol < 3; blockCol++) {
+        const values = new Set();
+        for (let i = 0; i < 3; i++) {
+          for (let j = 0; j < 3; j++) {
+            values.add(board[blockRow * 3 + i][blockCol * 3 + j].value);
+          }
+        }
+        if (values.size === 9 && !values.has(0)) {
+          newCompletions.add(`block-${blockRow}-${blockCol}`);
+        }
+      }
+    }
+
+    // Only update if there are new completions
+    if (newCompletions.size > 0) {
+      setCompletedSections(newCompletions);
+      // Clear the completions after 400ms (matches the animation duration)
+      setTimeout(() => {
+        setCompletedSections(new Set());
+      }, 400);
+    }
+  };
 
   const handleCellPress = (row: number, col: number) => {
     if (gameState.isComplete) return;
@@ -141,16 +187,13 @@ export default function Sudoku() {
         }
 
         if (isFilled) {
-          // Only check if the board is complete, don't mark errors
           const validatedBoard = validateBoard(newBoard);
           let hasErrors = false;
 
-          // Check for errors and apply penalties without highlighting
           for (let r = 0; r < 9; r++) {
             for (let c = 0; c < 9; c++) {
               if (validatedBoard[r][c].isError) {
                 hasErrors = true;
-                // Only apply penalty if this is a new error
                 if (!prev.board[r][c].isError) {
                   setScore(prevScore => Math.max(0, prevScore - PENALTIES.WRONG_NUMBER));
                 }
@@ -158,12 +201,24 @@ export default function Sudoku() {
             }
           }
 
+          const isComplete = !hasErrors;
+          if (isComplete) {
+            // Trigger victory animation
+            setIsVictoryAnimating(true);
+            setTimeout(() => {
+              setIsVictoryAnimating(false);
+            }, 2000);
+          }
+
           return {
             ...prev,
-            board: newBoard, // Use newBoard instead of validatedBoard to avoid showing errors
-            isComplete: !hasErrors,
+            board: newBoard,
+            isComplete,
           };
         }
+
+        // Check for completions after each move
+        checkCompletions(newBoard);
 
         // Check if the new number creates a conflict but don't show it
         const validatedBoard = validateBoard(newBoard);
@@ -173,7 +228,7 @@ export default function Sudoku() {
 
         return {
           ...prev,
-          board: newBoard, // Use newBoard instead of validatedBoard to avoid showing errors
+          board: newBoard,
         };
       });
     }
@@ -455,24 +510,35 @@ Tips: Use Notes Mode to mark possible numbers in cells. Switch difficulty levels
         <View style={[styles.board, { width: BOARD_SIZE, height: BOARD_SIZE }]}>
           {gameState.board.map((row, rowIndex) => (
             <View key={rowIndex} style={styles.row}>
-              {row.map((cell, colIndex) => (
-                <SudokuCell
-                  key={`${rowIndex}-${colIndex}`}
-                  cell={cell}
-                  row={rowIndex}
-                  col={colIndex}
-                  isSelected={
-                    gameState.selectedCell?.row === rowIndex &&
-                    gameState.selectedCell?.col === colIndex
-                  }
-                  isHighlighted={
-                    hintCell?.row === rowIndex &&
-                    hintCell?.col === colIndex
-                  }
-                  onPress={handleCellPress}
-                  size={CELL_SIZE}
-                />
-              ))}
+              {row.map((cell, colIndex) => {
+                const blockRow = Math.floor(rowIndex / 3);
+                const blockCol = Math.floor(colIndex / 3);
+                const isCompleted = 
+                  completedSections.has(`row-${rowIndex}`) ||
+                  completedSections.has(`col-${colIndex}`) ||
+                  completedSections.has(`block-${blockRow}-${blockCol}`);
+
+                return (
+                  <SudokuCell
+                    key={`${rowIndex}-${colIndex}`}
+                    cell={cell}
+                    row={rowIndex}
+                    col={colIndex}
+                    isSelected={
+                      gameState.selectedCell?.row === rowIndex &&
+                      gameState.selectedCell?.col === colIndex
+                    }
+                    isHighlighted={
+                      hintCell?.row === rowIndex &&
+                      hintCell?.col === colIndex
+                    }
+                    isCompleted={isCompleted}
+                    isVictory={isVictoryAnimating}
+                    onPress={handleCellPress}
+                    size={CELL_SIZE}
+                  />
+                );
+              })}
             </View>
           ))}
         </View>
