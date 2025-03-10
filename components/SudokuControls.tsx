@@ -24,8 +24,10 @@ const SudokuControls: React.FC<SudokuControlsProps> = ({
 
   return (
     <View style={styles.container}>
-      <View style={styles.topRow}>
+      <View style={styles.modeToggleContainer}>
         <SudokuModeToggle isNotesMode={isNotesMode} onToggle={onToggleMode} />
+      </View>
+      <View style={styles.controlsContainer}>
         <View style={styles.controlButtons}>
           <TouchableOpacity 
             style={[styles.controlButton, { backgroundColor: '#32CD32' }]} 
@@ -76,11 +78,14 @@ const styles = StyleSheet.create({
     width: '100%',
     gap: 8,
   },
-  topRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  modeToggleContainer: {
     alignItems: 'center',
-    gap: 8,
+    marginBottom: 8,
+  },
+  controlsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginBottom: 8,
   },
   numberGrid: {
     flexDirection: 'row',

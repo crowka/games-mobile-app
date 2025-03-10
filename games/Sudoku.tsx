@@ -647,11 +647,12 @@ const styles = StyleSheet.create({
   gameSection: {
     flex: 1,
     alignItems: 'center',
-    gap: 10,
+    gap: 16,
   },
   board: {
     borderWidth: 2,
     borderColor: '#999',
+    marginBottom: 8,
   },
   row: {
     flexDirection: 'row',
